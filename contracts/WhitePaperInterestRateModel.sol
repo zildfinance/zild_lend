@@ -4,18 +4,20 @@ import "./InterestRateModel.sol";
 import "./SafeMath.sol";
 
 /**
-  * @title WhitePaperInterestRateModel Contract
+  * @title  WhitePaperInterestRateModel Contract
   * @notice The parameterized model described in section 2.4 of the original Compound Protocol whitepaper
   */
 contract WhitePaperInterestRateModel is InterestRateModel {
     using SafeMath for uint;
+
+    bytes32  internal constant projectHash = keccak256(abi.encodePacked("ZILD"));
 
     event NewInterestParams(uint baseRatePerBlock, uint multiplierPerBlock);
 
     /**
      * @notice The approximate number of blocks per year that is assumed by the interest rate model
      */
-    uint public constant blocksPerYear = 2102400;
+    uint public constant blocksPerYear = 2102400; // ethereum:  4 * 60 * 24 * 365 = 2102400
 
     /**
      * @notice The multiplier of utilization rate that gives the slope of the interest rate
