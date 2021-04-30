@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.5.17;
 
 import "./ComptrollerInterface.sol";
 import "./GTokenInterfaces.sol";
@@ -32,7 +32,10 @@ contract GToken is GTokenInterface, Exponential, TokenErrorReporter {
     // redeem fee amount = redeem amount * redeemFee / 10000;
     uint public redeemFee;
 
-    uint public constant tenThousand = 10000;
+    uint public constant TEN_THOUSAND = 10000;
+    
+    // max fee borrow redeem fee : 1%
+    uint public constant MAX_BORROW_REDEEM_FEE = 100;
 
     // borrow fee and redeemFee will send to feeTo
     address payable public feeTo;
@@ -83,12 +86,13 @@ contract GToken is GTokenInterface, Exponential, TokenErrorReporter {
         err = _setInterestRateModelFresh(interestRateModel_);
         require(err == uint(Error.NO_ERROR), "setting interest rate model failed");
 
+        _setBorrowFee(borrowFee_);
+        _setRedeemFee(redeemFee_);
+        _setFeeTo(feeTo_);
+
         name = name_;
         symbol = symbol_;
         decimals = decimals_;
-        borrowFee = borrowFee_;
-        redeemFee = redeemFee_;
-        feeTo = feeTo_;
         underlying = underlying_;
 
         // The counter starts true to prevent changing it from zero to non-zero (i.e. smaller cost/refund)
@@ -102,11 +106,13 @@ contract GToken is GTokenInterface, Exponential, TokenErrorReporter {
     * @param newBorrowFee  newBorrowFee
     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
     */
-    function _setBorrowFee(uint newBorrowFee) external returns (uint) {
+    function _setBorrowFee(uint newBorrowFee) public returns (uint) {
         // Check caller = admin
         if (msg.sender != admin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.SET_PENDING_ADMIN_OWNER_CHECK);
         }
+
+        require(newBorrowFee <= MAX_BORROW_REDEEM_FEE, "newBorrowFee is greater than MAX_BORROW_REDEEM_FEE");
 
         emit NewBorrowFee(borrowFee, newBorrowFee);
 
@@ -122,11 +128,13 @@ contract GToken is GTokenInterface, Exponential, TokenErrorReporter {
     * @param newRedeemFee newRedeemFee
     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
     */
-    function _setRedeemFee(uint newRedeemFee) external returns (uint) {
+    function _setRedeemFee(uint newRedeemFee) public returns (uint) {
         // Check caller = admin
         if (msg.sender != admin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.SET_PENDING_ADMIN_OWNER_CHECK);
         }
+
+        require(newRedeemFee <= MAX_BORROW_REDEEM_FEE, "newRedeemFee is greater than MAX_BORROW_REDEEM_FEE");
 
         emit NewBorrowFee(redeemFee, newRedeemFee);
 
@@ -141,11 +149,13 @@ contract GToken is GTokenInterface, Exponential, TokenErrorReporter {
     * @param newFeeTo newFeeTo
     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
     */
-    function _setFeeTo(address payable newFeeTo) external returns (uint) {
+    function _setFeeTo(address payable newFeeTo) public returns (uint) {
         // Check caller = admin
         if (msg.sender != admin) {
             return fail(Error.UNAUTHORIZED, FailureInfo.SET_PENDING_ADMIN_OWNER_CHECK);
         }
+
+        require(newFeeTo != address(0), "newFeeTo is zero address");
 
         emit NewFeeTo(feeTo, newFeeTo);
 
@@ -796,7 +806,7 @@ contract GToken is GTokenInterface, Exponential, TokenErrorReporter {
             return failOpaque(Error.MATH_ERROR, FailureInfo.REDEEM_NEW_ACCOUNT_BALANCE_CALCULATION_FAILED, uint(vars.mathErr));
         }
 
-        (vars.mathErr, fee) = divUInt(fee, tenThousand);
+        (vars.mathErr, fee) = divUInt(fee, TEN_THOUSAND);
         if (vars.mathErr != MathError.NO_ERROR) {
             return failOpaque(Error.MATH_ERROR, FailureInfo.REDEEM_NEW_ACCOUNT_BALANCE_CALCULATION_FAILED, uint(vars.mathErr));
         }
@@ -910,7 +920,7 @@ contract GToken is GTokenInterface, Exponential, TokenErrorReporter {
             return failOpaque(Error.MATH_ERROR, FailureInfo.BORROW_NEW_ACCOUNT_BORROW_BALANCE_CALCULATION_FAILED, uint(vars.mathErr));
         }
 
-        (vars.mathErr, fee) = divUInt(fee, tenThousand);
+        (vars.mathErr, fee) = divUInt(fee, TEN_THOUSAND);
         if (vars.mathErr != MathError.NO_ERROR) {
             return failOpaque(Error.MATH_ERROR, FailureInfo.BORROW_NEW_ACCOUNT_BORROW_BALANCE_CALCULATION_FAILED, uint(vars.mathErr));
         }
